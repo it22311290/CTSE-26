@@ -1,0 +1,141 @@
+name: CI/CD Pipeline - Payment Service
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'payment-service/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'payment-service/**'
+
+env:
+  AZURE_CONTAINER_REGISTRY: ecommerceacr
+  ACR_REGISTRY: ecommerceacr.azurecr.io
+  IMAGE_NAME: payment-service
+  CONTAINER_APP_NAME: payment-service
+  RESOURCE_GROUP: ecommerce-rg
+  CONTAINER_APP_ENV: ecommerce-env
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./payment-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./payment-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint || true
+
+      - name: Run tests
+        run: npm test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./payment-service/coverage
+          flags: payment-service
+        continue-on-error: true
+
+  security-scan:
+    name: Security Scan (SAST)
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: ./payment-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --project-name=payment-service
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: ./payment-service
+          args: >
+            -Dsonar.projectKey=ecommerce-payment-service
+            -Dsonar.organization=${{ secrets.SONAR_ORG }}
+
+  build-and-push:
+    name: Build & Push to ACR
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build, tag, and push Docker image to ACR
+        id: build-image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG ./payment-service
+          docker tag $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG $ACR_REGISTRY/$IMAGE_NAME:latest
+          docker push $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+          docker push $ACR_REGISTRY/$IMAGE_NAME:latest
+          echo "image=$ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: ${{ env.AZURE_CONTAINER_REGISTRY }}
+          containerAppName: ${{ env.CONTAINER_APP_NAME }}
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          imageToDeploy: ${{ needs.build-and-push.outputs.image }}
+          targetPort: 3004

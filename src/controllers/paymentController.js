@@ -1,89 +1,100 @@
-const { PaymentModel, PaymentStatus } = require("../models/paymentModel");
+const mongoose = require("mongoose");
 const axios = require("axios");
+const { Payment, PaymentStatus } = require("../models/paymentModel");
 
 const ORDER_SERVICE = process.env.ORDER_SERVICE_URL || "http://order-service:3003";
 
-const simulatePaymentGateway = (amount, method) => {
-  // Simulate payment gateway (95% success rate)
-  return Math.random() > 0.05;
-};
+const simulateGateway = () => Math.random() > 0.05; // 95% success
 
 const paymentController = {
   initiatePayment: async (req, res, next) => {
     try {
       const { orderId, amount, userId, method = "card" } = req.body;
-
       if (!orderId || !amount || !userId)
         return res.status(400).json({ error: "orderId, amount, and userId are required" });
       if (amount <= 0)
         return res.status(400).json({ error: "Amount must be positive" });
 
-      const existingPayments = PaymentModel.findByOrder(orderId);
-      const successfulPayment = existingPayments.find(p => p.status === PaymentStatus.COMPLETED);
-      if (successfulPayment)
-        return res.status(409).json({ error: "Order already paid", payment: successfulPayment });
+      const existingSuccess = await Payment.findOne({ orderId, status: PaymentStatus.COMPLETED });
+      if (existingSuccess)
+        return res.status(409).json({ error: "Order already paid", payment: existingSuccess });
 
-      const payment = PaymentModel.create({ orderId, userId, amount, method });
+      const payment = await Payment.create({ orderId, userId, amount, method });
+      await Payment.findByIdAndUpdate(payment._id, { $set: { status: PaymentStatus.PROCESSING } });
 
-      // Simulate async payment processing
+      // Simulate async gateway processing
       setTimeout(async () => {
-        const success = simulatePaymentGateway(amount, method);
+        const success = simulateGateway();
+        const newStatus = success ? PaymentStatus.COMPLETED : PaymentStatus.FAILED;
+        await Payment.findByIdAndUpdate(payment._id, { $set: { status: newStatus } });
+
         if (success) {
-          PaymentModel.update(payment.id, { status: PaymentStatus.COMPLETED });
-          // Notify Order Service
           try {
             await axios.post(`${ORDER_SERVICE}/api/orders/internal/confirm-payment`, {
-              orderId, paymentId: payment.id
+              orderId, paymentId: payment._id.toString()
             });
           } catch (err) {
             console.error("Failed to notify order service:", err.message);
           }
-        } else {
-          PaymentModel.update(payment.id, { status: PaymentStatus.FAILED });
         }
       }, 2000);
 
-      PaymentModel.update(payment.id, { status: PaymentStatus.PROCESSING });
       res.status(202).json({
         message: "Payment initiated",
-        paymentId: payment.id,
+        paymentId: payment._id.toString(),
         transactionRef: payment.transactionRef,
-        status: PaymentStatus.PROCESSING
+        status: PaymentStatus.PROCESSING,
       });
     } catch (err) { next(err); }
   },
 
-  getPaymentById: (req, res) => {
-    const payment = PaymentModel.findById(req.params.id);
-    if (!payment) return res.status(404).json({ error: "Payment not found" });
-    if (payment.userId !== req.user.userId && req.user.role !== "admin")
-      return res.status(403).json({ error: "Access denied" });
-    res.json({ payment });
+  getPaymentById: async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id))
+        return res.status(404).json({ error: "Payment not found" });
+      const payment = await Payment.findById(req.params.id);
+      if (!payment) return res.status(404).json({ error: "Payment not found" });
+      if (payment.userId !== req.user.userId && req.user.role !== "admin")
+        return res.status(403).json({ error: "Access denied" });
+      res.json({ payment });
+    } catch (err) { next(err); }
   },
 
-  getPaymentsByOrder: (req, res) => {
-    const payments = PaymentModel.findByOrder(req.params.orderId);
-    res.json({ payments });
+  getPaymentsByOrder: async (req, res, next) => {
+    try {
+      const payments = await Payment.find({ orderId: req.params.orderId });
+      res.json({ payments });
+    } catch (err) { next(err); }
   },
 
-  getMyPayments: (req, res) => {
-    const payments = PaymentModel.findByUser(req.user.userId);
-    res.json({ payments, count: payments.length });
+  getMyPayments: async (req, res, next) => {
+    try {
+      const payments = await Payment.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+      res.json({ payments, count: payments.length });
+    } catch (err) { next(err); }
   },
 
-  getAllPayments: (req, res) => {
-    const payments = PaymentModel.findAll();
-    res.json({ payments, count: payments.length });
+  getAllPayments: async (req, res, next) => {
+    try {
+      const payments = await Payment.find().sort({ createdAt: -1 });
+      res.json({ payments, count: payments.length });
+    } catch (err) { next(err); }
   },
 
   refundPayment: async (req, res, next) => {
     try {
-      const payment = PaymentModel.findById(req.params.id);
+      if (!mongoose.isValidObjectId(req.params.id))
+        return res.status(404).json({ error: "Payment not found" });
+      const payment = await Payment.findById(req.params.id);
       if (!payment) return res.status(404).json({ error: "Payment not found" });
       if (payment.status !== PaymentStatus.COMPLETED)
         return res.status(400).json({ error: `Cannot refund payment with status: ${payment.status}` });
 
-      const refunded = PaymentModel.update(payment.id, { status: PaymentStatus.REFUNDED });
+      const refunded = await Payment.findByIdAndUpdate(
+        payment._id,
+        { $set: { status: PaymentStatus.REFUNDED } },
+        { new: true }
+      );
       res.json({ message: "Payment refunded successfully", payment: refunded });
     } catch (err) { next(err); }
   }
