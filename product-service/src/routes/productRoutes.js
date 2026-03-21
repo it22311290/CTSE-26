@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
+const { authenticate, authorize, authenticateService } = require("../middleware/auth");
 
 /**
  * @swagger
@@ -67,7 +68,7 @@ router.get("/:id", productController.getById);
  *     responses:
  *       201: { description: Product created }
  */
-router.post("/", productController.create);
+router.post("/", authenticate, authorize("admin"), productController.create);
 
 /**
  * @swagger
@@ -98,7 +99,7 @@ router.post("/", productController.create);
  *       200: { description: Product updated }
  *       404: { description: Product not found }
  */
-router.put("/:id", productController.update);
+router.put("/:id", authenticate, authorize("admin"), productController.update);
 
 /**
  * @swagger
@@ -117,7 +118,7 @@ router.put("/:id", productController.update);
  *       200: { description: Product deleted }
  *       404: { description: Product not found }
  */
-router.delete("/:id", productController.delete);
+router.delete("/:id", authenticate, authorize("admin"), productController.delete);
 
 // Internal service-to-service endpoints (secured by service key in production)
 /**
@@ -126,6 +127,8 @@ router.delete("/:id", productController.delete);
  *   post:
  *     summary: Check and reserve stock (internal)
  *     tags: [Internal]
+ *     security:
+ *       - serviceKey: []
  *     requestBody:
  *       required: true
  *       content:
@@ -138,9 +141,9 @@ router.delete("/:id", productController.delete);
  *               quantity: { type: integer }
  *     responses:
  *       200: { description: Stock reserved }
- *       400: { description: Insufficient stock }
+ *       409: { description: Insufficient stock }
  */
-router.post("/internal/check-stock", productController.checkAndReserveStock);
+router.post("/internal/check-stock", authenticateService, productController.checkAndReserveStock);
 
 /**
  * @swagger
@@ -148,6 +151,8 @@ router.post("/internal/check-stock", productController.checkAndReserveStock);
  *   post:
  *     summary: Restore stock (internal)
  *     tags: [Internal]
+ *     security:
+ *       - serviceKey: []
  *     requestBody:
  *       required: true
  *       content:
@@ -161,6 +166,6 @@ router.post("/internal/check-stock", productController.checkAndReserveStock);
  *     responses:
  *       200: { description: Stock restored }
  */
-router.post("/internal/restore-stock", productController.restoreStock);
+router.post("/internal/restore-stock", authenticateService, productController.restoreStock);
 
 module.exports = router;

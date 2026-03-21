@@ -70,13 +70,14 @@ const productController = {
   checkAndReserveStock: async (req, res, next) => {
     try {
       const { productId, quantity } = req.body;
-      if (!productId || !quantity)
-        return res.status(400).json({ error: "productId and quantity required" });
+      const quantityNum = parseInt(quantity);
+      if (!productId || isNaN(quantityNum) || quantityNum <= 0)
+        return res.status(400).json({ error: "productId and positive integer quantity required" });
 
       // findOneAndUpdate with $inc is atomic in MongoDB
       const product = await Product.findOneAndUpdate(
-        { _id: productId, stock: { $gte: quantity } },   // only match if stock is sufficient
-        { $inc: { stock: -quantity } },
+        { _id: productId, stock: { $gte: quantityNum } },   // only match if stock is sufficient
+        { $inc: { stock: -quantityNum } },
         { new: true }
       );
 
@@ -85,16 +86,19 @@ const productController = {
         if (!exists) return res.status(404).json({ error: "Product not found" });
         return res.status(409).json({ error: "Insufficient stock", available: exists.stock });
       }
-      res.json({ success: true, product, reserved: quantity });
+      res.json({ success: true, product, reserved: quantityNum });
     } catch (err) { next(err); }
   },
 
   restoreStock: async (req, res, next) => {
     try {
       const { productId, quantity } = req.body;
+      const quantityNum = parseInt(quantity);
+      if (!productId || isNaN(quantityNum) || quantityNum <= 0)
+        return res.status(400).json({ error: "productId and positive integer quantity required" });
       const product = await Product.findByIdAndUpdate(
         productId,
-        { $inc: { stock: quantity } },
+        { $inc: { stock: quantityNum } },
         { new: true }
       );
       if (!product) return res.status(404).json({ error: "Product not found" });

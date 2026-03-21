@@ -7,7 +7,12 @@ const connectDB = async () => {
   console.log(`[product-service] MongoDB connected: ${mongoose.connection.host}`);
 };
 
+const disconnectDB = async () => {
+  await mongoose.connection.close();
+  console.log("[product-service] MongoDB disconnected");
+};
+
 mongoose.connection.on("disconnected", () => console.warn("[product-service] MongoDB disconnected"));
 mongoose.connection.on("error", (err) => console.error("[product-service] MongoDB error:", err));
 
-module.exports = connectDB;
+module.exports = { connectDB, disconnectDB };

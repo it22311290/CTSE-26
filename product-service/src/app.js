@@ -10,7 +10,19 @@ const { requestLogger } = require("./middleware/logger");
 
 const app = express();
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS || "*", methods: ["GET","POST","PUT","DELETE"] }));
+
+// Parse ALLOWED_ORIGINS into array or keep as "*" or function
+const allowedOrigins = process.env.ALLOWED_ORIGINS;
+let corsOrigin;
+if (allowedOrigins === "*") {
+  corsOrigin = "*";
+} else if (allowedOrigins) {
+  corsOrigin = allowedOrigins.split(",").map(origin => origin.trim());
+} else {
+  corsOrigin = "*";
+}
+
+app.use(cors({ origin: corsOrigin, methods: ["GET","POST","PUT","DELETE"] }));
 app.use(rateLimit({ windowMs: 15*60*1000, max: 200, message: { error: "Rate limit exceeded" } }));
 app.use(express.json({ limit: "10kb" }));
 app.use(requestLogger);

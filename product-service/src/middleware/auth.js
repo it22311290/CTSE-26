@@ -1,4 +1,5 @@
 const axios = require("axios");
+const jwt = require("jsonwebtoken");
 
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -18,13 +19,17 @@ const authenticate = async (req, res, next) => {
     }
   }
 
-  // Fallback: basic JWT decode without verification (dev only)
+  // Fallback: verify JWT with shared secret (only in development)
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(401).json({ error: "Authentication service unavailable" });
+  }
+
   try {
     const token = authHeader.split(" ")[1];
-    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
-    req.user = payload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
     next();
-  } catch {
+  } catch (err) {
     res.status(401).json({ error: "Invalid token" });
   }
 };
@@ -35,4 +40,12 @@ const authorize = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, authorize };
+const authenticateService = (req, res, next) => {
+  const serviceKey = req.headers['x-service-key'] || req.headers['x-internal-key'];
+  if (!serviceKey || serviceKey !== process.env.INTERNAL_SERVICE_KEY) {
+    return res.status(403).json({ error: "Invalid service key" });
+  }
+  next();
+};
+
+module.exports = { authenticate, authorize, authenticateService };
