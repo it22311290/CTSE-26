@@ -1,12 +1,19 @@
 const mongoose = require("mongoose");
 
-async function connectDb(uri) {
-  if (mongoose.connection.readyState === 1) return mongoose;
-  await mongoose.connect(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-  return mongoose;
-}
+const connectDB = async () => {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI environment variable is not set");
 
-module.exports = { connectDb };
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+  });
+  console.log(`[user-service] MongoDB connected: ${mongoose.connection.host}`);
+};
+
+mongoose.connection.on("disconnected", () =>
+  console.warn("[user-service] MongoDB disconnected"));
+mongoose.connection.on("error", (err) =>
+  console.error("[user-service] MongoDB error:", err));
+
+module.exports = connectDB;

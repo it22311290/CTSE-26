@@ -1,26 +1,19 @@
-const app = require('./app');
+const app = require("./app");
+const connectDB = require("./db");
 
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
-  console.log(`User Service running on port ${PORT}`);
-  console.log(`API Docs: http://localhost:${PORT}/api-docs`);
-  console.log(`Health: http://localhost:${PORT}/health`);
-});
-
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Process terminated');
-    process.exit(0);
+const start = async () => {
+  await connectDB();
+  const server = app.listen(PORT, () => {
+    console.log(`User Service running on port ${PORT}`);
+    console.log(`API Docs: http://localhost:${PORT}/api-docs`);
+    console.log(`Health:   http://localhost:${PORT}/health`);
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
-  server.close(() => {
-    process.exit(0);
-  });
-});
+  const shutdown = () => server.close(() => { console.log("User Service stopped"); process.exit(0); });
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT",  shutdown);
+};
 
-module.exports = server;
+start().catch(err => { console.error("Failed to start:", err); process.exit(1); });
