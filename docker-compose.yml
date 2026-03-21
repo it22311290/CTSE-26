@@ -1,0 +1,195 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────
+#  Each microservice gets its OWN MongoDB instance (separate DBs)
+#  Connection strings use the container name as hostname
+# ─────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Databases ──────────────────────────────────────────────────
+  mongo-users:
+    image: mongo:7
+    container_name: mongo-users
+    restart: unless-stopped
+    volumes:
+      - mongo-users-data:/data/db
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mongo-products:
+    image: mongo:7
+    container_name: mongo-products
+    restart: unless-stopped
+    volumes:
+      - mongo-products-data:/data/db
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mongo-orders:
+    image: mongo:7
+    container_name: mongo-orders
+    restart: unless-stopped
+    volumes:
+      - mongo-orders-data:/data/db
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mongo-payments:
+    image: mongo:7
+    container_name: mongo-payments
+    restart: unless-stopped
+    volumes:
+      - mongo-payments-data:/data/db
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Microservices ───────────────────────────────────────────────
+  user-service:
+    build:
+      context: ./user-service
+      target: production
+    container_name: user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo-users:27017/userdb
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-prod}
+      - JWT_EXPIRES_IN=24h
+    depends_on:
+      mongo-users:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  product-service:
+    build:
+      context: ./product-service
+      target: production
+    container_name: product-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo-products:27017/productdb
+      - USER_SERVICE_URL=http://user-service:3001
+    depends_on:
+      mongo-products:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  order-service:
+    build:
+      context: ./order-service
+      target: production
+    container_name: order-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo-orders:27017/orderdb
+      - USER_SERVICE_URL=http://user-service:3001
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - PAYMENT_SERVICE_URL=http://payment-service:3004
+    depends_on:
+      mongo-orders:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  payment-service:
+    build:
+      context: ./payment-service
+      target: production
+    container_name: payment-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo-payments:27017/paymentdb
+      - USER_SERVICE_URL=http://user-service:3001
+      - ORDER_SERVICE_URL=http://order-service:3003
+    depends_on:
+      mongo-payments:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3004/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  ecommerce-network:
+    driver: bridge
+    name: ecommerce-network
+
+volumes:
+  mongo-users-data:
+  mongo-products-data:
+  mongo-orders-data:
+  mongo-payments-data:
