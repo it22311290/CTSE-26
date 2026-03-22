@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "user-service/**"
+  workflow_dispatch:
 
 env:
   # Using the folder name as the image and app name for consistency
