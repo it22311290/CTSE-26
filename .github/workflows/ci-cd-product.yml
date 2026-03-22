@@ -131,3 +131,4 @@ jobs:
             USER_SERVICE_URL=${{ secrets.USER_SERVICE_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             INTERNAL_SERVICE_KEY=${{ secrets.INTERNAL_SERVICE_KEY }}
+            NODE_ENV=production
