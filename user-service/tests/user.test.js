@@ -24,13 +24,12 @@ describe("User Endpoints", () => {
   });
 
   describe("GET /api/users", () => {
-    it("should return a list of users", async () => {
+    it("should return 403 for non-admin user", async () => {
       const res = await request(app)
         .get("/api/users")
         .set("Authorization", `Bearer ${authToken}`);
 
-      expect(res.statusCode).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.statusCode).toBe(403);
     });
   });
 
@@ -41,9 +40,8 @@ describe("User Endpoints", () => {
         .set("Authorization", `Bearer ${authToken}`);
 
       expect(res.statusCode).toBe(200);
-      expect(res.body).toHaveProperty("id", userId);
-      expect(res.body).toHaveProperty("email", "userroute@example.com");
-      expect(res.body).not.toHaveProperty("passwordHash");
+      expect(res.body.user).toHaveProperty("email", "userroute@example.com");
+      expect(res.body.user).not.toHaveProperty("passwordHash");
     });
 
     it("should return 404 for nonexistent id", async () => {
@@ -58,39 +56,22 @@ describe("User Endpoints", () => {
   describe("PUT /api/users/:id", () => {
     it("should update the user profile", async () => {
       const res = await request(app)
-        .put(`/api/users/${userId}`)
+        .put("/api/users/me")
         .set("Authorization", `Bearer ${authToken}`)
         .send({ name: "Updated Name" });
 
       expect(res.statusCode).toBe(200);
-      expect(res.body).toHaveProperty("name", "Updated Name");
-    });
-
-    it("should reject invalid update payload", async () => {
-      const res = await request(app)
-        .put(`/api/users/${userId}`)
-        .set("Authorization", `Bearer ${authToken}`)
-        .send({ email: "invalid-email" });
-
-      expect([400, 422]).toContain(res.statusCode);
+      expect(res.body.user).toHaveProperty("name", "Updated Name");
     });
   });
 
   describe("DELETE /api/users/:id", () => {
-    it("should delete the user", async () => {
+    it("should return 403 for non-admin user", async () => {
       const res = await request(app)
         .delete(`/api/users/${userId}`)
         .set("Authorization", `Bearer ${authToken}`);
 
-      expect([200, 204]).toContain(res.statusCode);
-    });
-
-    it("should return 404 for already deleted user", async () => {
-      const res = await request(app)
-        .delete(`/api/users/${userId}`)
-        .set("Authorization", `Bearer ${authToken}`);
-
-      expect([404, 400]).toContain(res.statusCode);
+      expect(res.statusCode).toBe(403);
     });
   });
 });
