@@ -24,9 +24,12 @@ const { authenticate, authorize } = require("../middleware/auth");
  * userId: { type: string }
  * method: { type: string, enum: [card, paypal, bank_transfer] }
  * responses:
- * 202: { description: Payment initiated }
- * 400: { description: Bad request, missing parameters or invalid amount }
- * 409: { description: Already paid }
+ * 202:
+ * description: Payment initiated
+ * 400:
+ * description: Bad request, missing parameters or invalid amount
+ * 409:
+ * description: Already paid
  */
 router.post("/initiate", authenticate, paymentController.initiatePayment);
 
@@ -39,7 +42,8 @@ router.post("/initiate", authenticate, paymentController.initiatePayment);
  * security:
  * - bearerAuth: []
  * responses:
- * 200: { description: Payment list }
+ * 200:
+ * description: Payment list
  */
 router.get("/my", authenticate, paymentController.getMyPayments);
 
@@ -52,8 +56,10 @@ router.get("/my", authenticate, paymentController.getMyPayments);
  * security:
  * - bearerAuth: []
  * responses:
- * 200: { description: List of all payments }
- * 403: { description: Forbidden, admin role required }
+ * 200:
+ * description: List of all payments
+ * 403:
+ * description: Forbidden, admin role required
  */
 router.get("/", authenticate, authorize("admin"), paymentController.getAllPayments);
 
@@ -73,7 +79,8 @@ router.get("/", authenticate, authorize("admin"), paymentController.getAllPaymen
  * type: string
  * description: The order ID
  * responses:
- * 200: { description: List of payments for the given order }
+ * 200:
+ * description: List of payments for the given order
  */
 router.get("/order/:orderId", authenticate, paymentController.getPaymentsByOrder);
 
@@ -93,9 +100,12 @@ router.get("/order/:orderId", authenticate, paymentController.getPaymentsByOrder
  * type: string
  * description: The payment ID
  * responses:
- * 200: { description: Payment details }
- * 403: { description: Forbidden, access denied }
- * 404: { description: Payment not found }
+ * 200:
+ * description: Payment details
+ * 403:
+ * description: Forbidden, access denied
+ * 404:
+ * description: Payment not found
  */
 router.get("/:id", authenticate, paymentController.getPaymentById);
 
@@ -115,10 +125,14 @@ router.get("/:id", authenticate, paymentController.getPaymentById);
  * type: string
  * description: The payment ID to refund
  * responses:
- * 200: { description: Payment refunded successfully }
- * 400: { description: Cannot refund payment with current status }
- * 403: { description: Forbidden, admin role required }
- * 404: { description: Payment not found }
+ * 200:
+ * description: Payment refunded successfully
+ * 400:
+ * description: Cannot refund payment with current status
+ * 403:
+ * description: Forbidden, admin role required
+ * 404:
+ * description: Payment not found
  */
 router.post("/:id/refund", authenticate, authorize("admin"), paymentController.refundPayment);
 
