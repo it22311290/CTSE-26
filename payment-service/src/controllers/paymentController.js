@@ -37,7 +37,7 @@ const paymentController = {
             console.error("Failed to notify order service:", err.message);
           }
         }
-      }, 2000);
+      }, 2000).unref();
 
       res.status(202).json({
         message: "Payment initiated",

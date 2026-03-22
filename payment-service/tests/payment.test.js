@@ -48,10 +48,13 @@ describe("Payment Endpoints", () => {
   // ── POST /api/payments/initiate ──────────────────────────────────────────
 
   describe("POST /api/payments/initiate", () => {
+    const SERVICE_KEY = "test-service-key";
+
     it("should initiate a payment and return 202", async () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, userId: USER_ID, amount: 99.99 });
 
       expect(res.statusCode).toBe(202);
@@ -65,6 +68,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({
           orderId: ORDER_ID,
           userId: USER_ID,
@@ -79,6 +83,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ userId: USER_ID, amount: 99.99 });
 
       expect(res.statusCode).toBe(400);
@@ -89,6 +94,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, userId: USER_ID });
 
       expect(res.statusCode).toBe(400);
@@ -98,6 +104,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, amount: 99.99 });
 
       expect(res.statusCode).toBe(400);
@@ -107,6 +114,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, userId: USER_ID, amount: -5 });
 
       expect(res.statusCode).toBe(400);
@@ -124,6 +132,7 @@ describe("Payment Endpoints", () => {
       const res = await request(app)
         .post("/api/payments/initiate")
         .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, userId: USER_ID, amount: 99.99 });
 
       expect(res.statusCode).toBe(409);
@@ -131,9 +140,20 @@ describe("Payment Endpoints", () => {
       expect(res.body).toHaveProperty("payment");
     });
 
-    it("should reject an unauthenticated request", async () => {
+    it("should reject a request with invalid service key", async () => {
       const res = await request(app)
         .post("/api/payments/initiate")
+        .set("Authorization", `Bearer ${userToken}`)
+        .set("x-service-key", "wrong-key")
+        .send({ orderId: ORDER_ID, userId: USER_ID, amount: 99.99 });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("should reject an unauthenticated request (no bearer token)", async () => {
+      const res = await request(app)
+        .post("/api/payments/initiate")
+        .set("x-service-key", SERVICE_KEY)
         .send({ orderId: ORDER_ID, userId: USER_ID, amount: 99.99 });
 
       expect(res.statusCode).toBe(401);
