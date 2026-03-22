@@ -101,7 +101,7 @@ jobs:
           docker tag $FULL_IMAGE_NAME ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
           docker push $FULL_IMAGE_NAME
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
-          echo "image=$FULL_IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "image=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   deploy:
     name: Deploy to Azure Container Apps
