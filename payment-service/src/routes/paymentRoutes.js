@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const paymentController = require("../controllers/paymentController");
-const { authenticate, authorize } = require("../middleware/auth");
+const { authenticate, authorize, authenticateService } = require("../middleware/auth");
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ const { authenticate, authorize } = require("../middleware/auth");
  *       409:
  *         description: Already paid
  */
-router.post("/initiate", authenticate, paymentController.initiatePayment);
+router.post("/initiate", authenticateService, authenticate, paymentController.initiatePayment);
 
 /**
  * @swagger

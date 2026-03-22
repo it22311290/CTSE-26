@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
+const { authenticateService } = require("../middleware/auth");
 
 /**
  * @swagger
@@ -147,6 +148,6 @@ router.post("/login", authController.login);
  *             schema:
  *               $ref: '#/components/schemas/AuthError'
  */
-router.get("/validate", authController.validate);
+router.get("/validate", authenticateService, authController.validate);
 
 module.exports = router;

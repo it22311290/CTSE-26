@@ -1,6 +1,8 @@
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
 
+process.env.INTERNAL_SERVICE_KEY = "test-service-key";
+
 let mongod;
 
 beforeAll(async () => {

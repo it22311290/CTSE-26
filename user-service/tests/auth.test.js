@@ -59,15 +59,26 @@ describe("Auth Endpoints", () => {
         name: "Val User", email: "val@example.com", password: "password123"
       });
       const res = await request(app).get("/api/auth/validate")
-        .set("Authorization", `Bearer ${reg.body.token}`);
+        .set("Authorization", `Bearer ${reg.body.token}`)
+        .set("x-service-key", "test-service-key");
       expect(res.statusCode).toBe(200);
       expect(res.body.valid).toBe(true);
     });
 
     it("should reject invalid token", async () => {
       const res = await request(app).get("/api/auth/validate")
-        .set("Authorization", "Bearer invalidtoken123");
+        .set("Authorization", "Bearer invalidtoken123")
+        .set("x-service-key", "test-service-key");
       expect(res.statusCode).toBe(401);
+    });
+
+    it("should reject missing service key", async () => {
+      const reg = await request(app).post("/api/auth/register").send({
+        name: "Key User", email: "key@example.com", password: "password123"
+      });
+      const res = await request(app).get("/api/auth/validate")
+        .set("Authorization", `Bearer ${reg.body.token}`);
+      expect(res.statusCode).toBe(403);
     });
   });
 

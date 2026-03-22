@@ -27,4 +27,12 @@ const authorize = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, authorize };
+const authenticateService = (req, res, next) => {
+  const serviceKey = req.headers['x-service-key'] || req.headers['x-internal-key'];
+  if (!serviceKey || serviceKey !== process.env.INTERNAL_SERVICE_KEY) {
+    return res.status(403).json({ error: "Invalid service key" });
+  }
+  next();
+};
+
+module.exports = { authenticate, authorize, authenticateService };
