@@ -1,77 +1,20 @@
-# GitHub Actions CI/CD Pipeline Documentation
-
-# PURPOSE:
-# This workflow automates the continuous integration and continuous deployment
-# for the User Service microservice. It runs on push/PR events to specific branches,
-# performs testing, security scanning, builds a Docker image, and deploys to Azure Container Apps.
-
-# TRIGGERS:
-# - Push events to 'main' and 'develop' branches (when user-service/** paths change)
-# - Pull requests to 'main' branch (when user-service/** paths change)
-
-# WORKFLOW STAGES:
-
-# 1. TEST & LINT JOB:
-#    - Checks out code
-#    - Sets up Node.js v20 with npm caching
-#    - Installs dependencies
-#    - Runs ESLint/code linting (non-blocking)
-#    - Executes test suite
-#    - Uploads coverage reports to Codecov (non-blocking)
-
-# 2. SECURITY SCAN JOB:
-#    - Runs after test job completes
-#    - Executes Snyk SAST security scanning for vulnerabilities
-#    - Performs SonarCloud code quality analysis
-#    - Both scans are non-blocking (continue-on-error: true)
-
-# 3. BUILD & PUSH JOB:
-#    - Runs after test and security-scan jobs (only on main branch push)
-#    - Authenticates to Azure Container Registry (ACR)
-#    - Builds Docker image from ./user-service directory
-#    - Tags image with git commit SHA and 'latest'
-#    - Pushes image to ACR
-#    - Outputs image reference for deployment job
-
-# 4. DEPLOY JOB:
-#    - Runs after build-and-push job (only on main branch push)
-#    - Authenticates to Azure subscription
-#    - Deploys updated image to Azure Container Apps
-#    - Exposes service on port 3001
-
-# REQUIRED GITHUB SECRETS (must be configured in repository settings):
-#   - SNYK_TOKEN: Snyk API token for security scanning
-#   - SONAR_TOKEN: SonarCloud authentication token
-#   - SONAR_ORG: SonarCloud organization identifier
-#   - ACR_USERNAME: Azure Container Registry username
-#   - ACR_PASSWORD: Azure Container Registry password
-#   - AZURE_CREDENTIALS: Azure service principal credentials (JSON format)
-#   - GITHUB_TOKEN: Automatically provided by GitHub Actions
-
-# REQUIRED ENVIRONMENT VARIABLES (already configured):
-#   - AZURE_CONTAINER_REGISTRY: ecommerceacr
-#   - ACR_REGISTRY: ecommerceacr.azurecr.io
-#   - IMAGE_NAME: user-service
-#   - CONTAINER_APP_NAME: user-service
-#   - RESOURCE_GROUP: ecommerce-rg
-#   - CONTAINER_APP_ENV: ecommerce-env
-name: CI/CD Pipeline - User Service
+name: CI/CD Pipeline - Product Service
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
     paths:
-      - "user-service/**"
+      - 'product-service/**'
   pull_request:
-    branches: [main]
+    branches: [ main ]
     paths:
-      - "user-service/**"
+      - 'product-service/**'
 
 env:
   AZURE_CONTAINER_REGISTRY: ecommerceacr
   ACR_REGISTRY: ecommerceacr.azurecr.io
-  IMAGE_NAME: user-service
-  CONTAINER_APP_NAME: user-service
+  IMAGE_NAME: product-service
+  CONTAINER_APP_NAME: product-service
   RESOURCE_GROUP: ecommerce-rg
   CONTAINER_APP_ENV: ecommerce-env
 
@@ -81,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./user-service
+        working-directory: ./product-service
 
     steps:
       - name: Checkout code
@@ -92,7 +35,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: ./user-service/package-lock.json
+          cache-dependency-path: ./product-service/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -106,8 +49,8 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          directory: ./user-service/coverage
-          flags: user-service
+          directory: ./product-service/coverage
+          flags: product-service
         continue-on-error: true
 
   security-scan:
@@ -116,7 +59,7 @@ jobs:
     needs: test
     defaults:
       run:
-        working-directory: ./user-service
+        working-directory: ./product-service
 
     steps:
       - name: Checkout code
@@ -128,7 +71,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --project-name=user-service
+          args: --severity-threshold=high --project-name=product-service
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -137,9 +80,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: ./user-service
+          projectBaseDir: ./product-service
           args: >
-            -Dsonar.projectKey=ecommerce-user-service
+            -Dsonar.projectKey=ecommerce-product-service
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
 
   build-and-push:
@@ -167,7 +110,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG ./user-service
+          docker build -t $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG ./product-service
           docker tag $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG $ACR_REGISTRY/$IMAGE_NAME:latest
           docker push $ACR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
           docker push $ACR_REGISTRY/$IMAGE_NAME:latest
@@ -195,4 +138,4 @@ jobs:
           containerAppName: ${{ env.CONTAINER_APP_NAME }}
           resourceGroup: ${{ env.RESOURCE_GROUP }}
           imageToDeploy: ${{ needs.build-and-push.outputs.image }}
-          targetPort: 3001
+          targetPort: 3002
