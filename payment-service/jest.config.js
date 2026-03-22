@@ -3,5 +3,7 @@ module.exports = {
   coverageDirectory: "coverage",
   collectCoverageFrom: ["src/**/*.js"],
   testMatch: ["**/tests/**/*.test.js"],
-  verbose: true
+  verbose: true,
+  testTimeout: 30000,
+  setupFilesAfterEnv: ["./tests/setup.js"]
 };
