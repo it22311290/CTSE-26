@@ -128,3 +128,6 @@ jobs:
           environmentVariables: >
             PORT=${{ env.PORT }}
             MONGODB_URI=${{ secrets.MONGODB_URI }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=${{ secrets.JWT_SECRET }}
+

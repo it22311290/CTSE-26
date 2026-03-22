@@ -129,3 +129,5 @@ jobs:
             PORT=${{ env.PORT }}
             MONGODB_URI=${{ secrets.MONGODB_URI }}
             USER_SERVICE_URL=${{ secrets.USER_SERVICE_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            INTERNAL_SERVICE_KEY=${{ secrets.INTERNAL_SERVICE_KEY }}

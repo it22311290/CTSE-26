@@ -129,3 +129,4 @@ jobs:
             MONGODB_URI=${{ secrets.MONGODB_URI }}
             USER_SERVICE_URL=${{ secrets.USER_SERVICE_URL }}
             PRODUCT_SERVICE_URL=${{ secrets.PRODUCT_SERVICE_URL }}
+            PAYMENT_SERVICE_URL=${{ secrets.PAYMENT_SERVICE_URL }}
